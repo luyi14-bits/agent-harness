@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>开源 Agent 框架调研报告 — Skill-to-Agent 方案选型</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-card: #1c2128;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-tertiary: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #bc8cff;
+            --accent-cyan: #39d2c0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans CJK SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 15px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #1a0b2e 0%, #0d1b2a 50%, #0d1117 100%);
+            border-radius: 16px;
+            padding: 48px 40px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; position: relative; }
+        .hero .subtitle { font-size: 18px; color: var(--text-secondary); position: relative; }
+        .hero .meta {
+            display: flex; gap: 24px; margin-top: 20px;
+            font-size: 13px; color: var(--text-tertiary); position: relative;
+        }
+        .hero .meta span { display: flex; align-items: center; gap: 6px; }
+        .hero .meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); }
+
+        /* Section */
+        .section { margin-bottom: 48px; }
+        .section-title {
+            font-size: 22px; font-weight: 700; margin-bottom: 20px;
+            padding-bottom: 12px; border-bottom: 2px solid var(--border-color);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-title .icon { font-size: 24px; }
+
+        /* Callout */
+        .callout {
+            background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(188,140,255,0.05));
+            border: 1px solid rgba(88,166,255,0.3);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+        .callout-title { font-weight: 700; color: var(--accent-blue); margin-bottom: 8px; font-size: 16px; }
+
+        /* Key Finding Cards */
+        .finding-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .finding-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .finding-card:hover { transform: translateY(-2px); border-color: var(--accent-blue); }
+        .finding-card .label { font-size: 12px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; }
+        .finding-card .value { font-size: 28px; font-weight: 700; margin: 4px 0; }
+        .finding-card .desc { font-size: 13px; color: var(--text-secondary); }
+        .finding-card.highlight .value { color: var(--accent-green); }
+        .finding-card.warning .value { color: var(--accent-orange); }
+        .finding-card.critical .value { color: var(--accent-cyan); }
+
+        /* Comparison Table */
+        .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: var(--bg-tertiary); }
+        th { padding: 14px 16px; text-align: left; font-weight: 600; color: var(--text-secondary); white-space: nowrap; border-bottom: 1px solid var(--border-color); }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(88,166,255,0.03); }
+        .star { color: var(--accent-orange); font-weight: 600; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-green { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+        .badge-blue { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+        .badge-orange { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
+        .badge-red { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+        .badge-purple { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+        .badge-cyan { background: rgba(57,210,192,0.15); color: var(--accent-cyan); }
+
+        /* Framework Cards */
+        .framework-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .framework-card.featured { border-color: var(--accent-cyan); border-width: 2px; }
+        .framework-card.featured::before {
+            content: '最匹配';
+            position: absolute; top: -10px; right: 20px;
+            background: var(--accent-cyan); color: #0d1117;
+            padding: 2px 12px; border-radius: 4px; font-size: 12px; font-weight: 700;
+        }
+        .framework-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .framework-name { font-size: 20px; font-weight: 700; }
+        .framework-name a { color: var(--accent-blue); text-decoration: none; }
+        .framework-name a:hover { text-decoration: underline; }
+        .framework-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+        .framework-desc { color: var(--text-secondary); margin-bottom: 12px; font-size: 14px; }
+        .framework-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+        .feature-item { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; }
+        .feature-item .check { color: var(--accent-green); flex-shrink: 0; }
+        .feature-item .cross { color: var(--accent-red); flex-shrink: 0; }
+        .framework-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* Pros & Cons */
+        .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+        .pros, .cons {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .pros { border-left: 3px solid var(--accent-green); }
+        .cons { border-left: 3px solid var(--accent-orange); }
+        .pros-title { color: var(--accent-green); font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+        .cons-title { color: var(--accent-orange); font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+        .pros ul, .cons ul { list-style: none; padding: 0; }
+        .pros li, .cons li { font-size: 13px; color: var(--text-secondary); padding: 2px 0; padding-left: 16px; position: relative; }
+        .pros li::before { content: '+'; position: absolute; left: 0; color: var(--accent-green); font-weight: 700; }
+        .cons li::before { content: '-'; position: absolute; left: 0; color: var(--accent-orange); font-weight: 700; }
+
+        /* Decision Tree */
+        .decision-tree {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+        }
+        .decision-step {
+            display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start;
+        }
+        .decision-step:last-child { margin-bottom: 0; }
+        .step-number {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--accent-blue); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; flex-shrink: 0;
+        }
+        .step-content { flex: 1; }
+        .step-content .question { font-weight: 600; margin-bottom: 4px; }
+        .step-content .options { display: flex; flex-direction: column; gap: 4px; }
+        .step-content .option { font-size: 13px; color: var(--text-secondary); padding-left: 12px; border-left: 2px solid var(--border-color); }
+        .step-content .option.recommended { border-color: var(--accent-green); color: var(--text-primary); }
+        .step-content .option .arrow { color: var(--accent-blue); margin-right: 4px; }
+
+        /* Recommendation Box */
+        .recommendation {
+            background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(57,210,192,0.05));
+            border: 2px solid var(--accent-green);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+        .recommendation h3 { color: var(--accent-green); margin-bottom: 12px; }
+        .recommendation p { color: var(--text-secondary); margin-bottom: 8px; }
+
+        /* Architecture Diagram */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            text-align: center;
+        }
+        .arch-flow {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            flex-wrap: wrap; margin: 16px 0;
+        }
+        .arch-node {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .arch-node.skill { border-color: var(--accent-purple); color: var(--accent-purple); }
+        .arch-node.agent { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .arch-node.core { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(88,166,255,0.1); }
+        .arch-arrow { color: var(--text-tertiary); font-size: 18px; }
+
+        /* Timeline */
+        .timeline { position: relative; padding-left: 24px; }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--border-color); }
+        .timeline-item { position: relative; margin-bottom: 16px; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -22px; top: 8px;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent-blue); border: 2px solid var(--bg-primary);
+        }
+        .timeline-date { font-size: 12px; color: var(--text-tertiary); }
+        .timeline-content { font-size: 14px; }
+
+        /* Source list */
+        .sources { font-size: 12px; color: var(--text-tertiary); }
+        .sources a { color: var(--accent-blue); text-decoration: none; }
+        .sources a:hover { text-decoration: underline; }
+        .sources li { margin-bottom: 4px; }
+
+        @media (max-width: 768px) {
+            .finding-grid { grid-template-columns: 1fr; }
+            .framework-features { grid-template-columns: 1fr; }
+            .pros-cons { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>开源 Agent 框架调研报告</h1>
+    <div class="subtitle">Skill-to-Agent 软件开发方案选型分析</div>
+    <div class="meta">
+        <span><span class="dot"></span> 调研日期: 2026-07-13</span>
+        <span>数据来源: GitHub API + 多源交叉验证</span>
+        <span>覆盖框架: 10+</span>
+    </div>
+</div>
+
+<!-- Executive Summary -->
+<div class="section">
+    <div class="section-title"><span class="icon">📋</span> 核心发现</div>
+
+    <div class="callout">
+        <div class="callout-title">一句话结论</div>
+        你的需求（将每个 skill 变成独立 agent 协助开发软件）在开源社区已有高度成熟的参考方案。最匹配的项目是 <strong>obra/superpowers</strong>（76k+ stars），它正是「agentic skills framework + 软件开发方法论」。建议<strong>以 Superpowers 为核心参考，结合自身 skill 体系进行定制</strong>，而非从零搭建。
+    </div>
+
+    <div class="finding-grid">
+        <div class="finding-card critical">
+            <div class="label">最匹配项目</div>
+            <div class="value">Superpowers</div>
+            <div class="desc">obra/superpowers — 技能驱动的 Agent 软件开发框架，76k+ stars，MIT 协议</div>
+        </div>
+        <div class="finding-card highlight">
+            <div class="label">调研框架总数</div>
+            <div class="value">10+</div>
+            <div class="desc">覆盖通用框架、软件开发专用框架、技能框架三大类</div>
+        </div>
+        <div class="finding-card warning">
+            <div class="label">建议方案</div>
+            <div class="value">Fork + 定制</div>
+            <div class="desc">以 Superpowers 架构为蓝本，融入你的 tree-sop skill 体系</div>
+        </div>
+    </div>
+</div>
+
+<!-- Framework Landscape -->
+<div class="section">
+    <div class="section-title"><span class="icon">🗺️</span> 开源 Agent 框架全景</div>
+    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+        当前 GitHub 上的 Agent 框架可分为三大类：<strong>通用多 Agent 编排框架</strong>（LangChain/LangGraph、AutoGen、CrewAI）、<strong>软件开发专用 Agent</strong>（OpenHands、MetaGPT、ChatDev）、<strong>技能驱动框架</strong>（Superpowers）。以下按 stars 排序展示主要项目。
+    </p>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>框架</th>
+                    <th>Stars</th>
+                    <th>类型</th>
+                    <th>语言</th>
+                    <th>核心定位</th>
+                    <th>Skill→Agent</th>
+                    <th>软件开发</th>
+                    <th>活跃度</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Superpowers</strong><br><span style="font-size:11px;color:var(--text-tertiary)">obra/superpowers</span></td>
+                    <td class="star">76k+</td>
+                    <td><span class="badge badge-cyan">技能框架</span></td>
+                    <td>Shell/JS</td>
+                    <td>Agent 技能体系 + 软件开发方法论</td>
+                    <td><span class="badge badge-green">原生支持</span></td>
+                    <td><span class="badge badge-green">核心能力</span></td>
+                    <td><span class="badge badge-green">极高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>LangChain</strong><br><span style="font-size:11px;color:var(--text-tertiary)">langchain-ai/langchain</span></td>
+                    <td class="star">117k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>全栈 LLM 应用编排平台</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">极高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>OpenHands</strong><br><span style="font-size:11px;color:var(--text-tertiary)">All-Hands-AI/OpenHands</span></td>
+                    <td class="star">72k+</td>
+                    <td><span class="badge badge-purple">软件Agent</span></td>
+                    <td>Python</td>
+                    <td>自主软件开发 Agent (Devin 替代)</td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                    <td><span class="badge badge-green">核心能力</span></td>
+                    <td><span class="badge badge-green">高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MetaGPT</strong><br><span style="font-size:11px;color:var(--text-tertiary)">FoundationAgents/MetaGPT</span></td>
+                    <td class="star">40k+</td>
+                    <td><span class="badge badge-purple">软件Agent</span></td>
+                    <td>Python</td>
+                    <td>多 Agent 模拟软件公司</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-green">核心能力</span></td>
+                    <td><span class="badge badge-orange">中</span></td>
+                </tr>
+                <tr>
+                    <td><strong>AutoGen</strong><br><span style="font-size:11px;color:var(--text-tertiary)">microsoft/autogen</span></td>
+                    <td class="star">37k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>多 Agent 对话编排</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>ChatDev</strong><br><span style="font-size:11px;color:var(--text-tertiary)">OpenBMB/ChatDev</span></td>
+                    <td class="star">25k+</td>
+                    <td><span class="badge badge-purple">软件Agent</span></td>
+                    <td>Python</td>
+                    <td>虚拟软件公司多 Agent 协作</td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                    <td><span class="badge badge-green">核心能力</span></td>
+                    <td><span class="badge badge-orange">中</span></td>
+                </tr>
+                <tr>
+                    <td><strong>CrewAI</strong><br><span style="font-size:11px;color:var(--text-tertiary)">crewAIInc/crewAI</span></td>
+                    <td class="star">25k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>角色驱动多 Agent 协作</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>LangGraph</strong><br><span style="font-size:11px;color:var(--text-tertiary)">langchain-ai/langgraph</span></td>
+                    <td class="star">22k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>图结构 Agent 状态机编排</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">极高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>OpenAI Agents SDK</strong><br><span style="font-size:11px;color:var(--text-tertiary)">openai/openai-agents-python</span></td>
+                    <td class="star">18k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>轻量级多 Agent 工作流</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">高</span></td>
+                </tr>
+                <tr>
+                    <td><strong>PydanticAI</strong><br><span style="font-size:11px;color:var(--text-tertiary)">pydantic/pydantic-ai</span></td>
+                    <td class="star">10k+</td>
+                    <td><span class="badge badge-blue">通用框架</span></td>
+                    <td>Python</td>
+                    <td>类型安全 Agent 框架</td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-green">高</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 8px;">
+        * Stars 数据截至 2026-07-13，来源于 GitHub API 及公开报道交叉验证。部分数据存在不同来源差异，已取较新值。
+    </p>
+</div>
+
+<!-- Key Framework Details -->
+<div class="section">
+    <div class="section-title"><span class="icon">🔬</span> 重点框架深度分析</div>
+
+    <!-- Superpowers -->
+    <div class="framework-card featured">
+        <div class="framework-header">
+            <div class="framework-name"><a href="https://github.com/obra/superpowers" target="_blank">Superpowers</a></div>
+            <div class="framework-meta">
+                <span class="badge badge-cyan">76k+ stars</span>
+                <span class="badge badge-green">MIT</span>
+                <span class="badge badge-blue">v6.0.2</span>
+                <span class="badge badge-purple">2025.10 创建</span>
+            </div>
+        </div>
+        <div class="framework-desc">
+            <strong>一句话定位：</strong>「An agentic skills framework &amp; software development methodology that works」— 技能驱动的 Agent 软件开发框架，与你的需求几乎完全吻合。
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <strong>核心工作流：</strong>
+            <div class="arch-flow">
+                <div class="arch-node skill">brainstorming</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">writing-plans</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">git-worktrees</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">subagent-driven-dev</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">TDD</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">code-review</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node skill">finishing-branch</div>
+            </div>
+        </div>
+
+        <div class="framework-features">
+            <div class="feature-item"><span class="check">✓</span> 每个 Skill 自动触发，无需手动调用</div>
+            <div class="feature-item"><span class="check">✓</span> 支持子 Agent 驱动开发（subagent-driven-development）</div>
+            <div class="feature-item"><span class="check">✓</span> 内置 TDD 红绿重构流程</div>
+            <div class="feature-item"><span class="check">✓</span> 支持并行 Agent 调度（dispatching-parallel-agents）</div>
+            <div class="feature-item"><span class="check">✓</span> 跨平台支持：Claude Code, Codex, Cursor, Gemini CLI 等 10+</div>
+            <div class="feature-item"><span class="check">✓</span> 内置 writing-skills 技能，可创建自定义技能</div>
+            <div class="feature-item"><span class="check">✓</span> 系统化调试方法论（systematic-debugging）</div>
+            <div class="feature-item"><span class="check">✓</span> 代码审查两阶段评审（spec + quality）</div>
+        </div>
+
+        <div class="pros-cons">
+            <div class="pros">
+                <div class="pros-title">优势</div>
+                <ul>
+                    <li>与你的需求高度匹配：skill → agent 工作流</li>
+                    <li>社区极其活跃，9 个月内从 0 到 76k stars</li>
+                    <li>跨平台兼容，不绑定特定 AI 编程工具</li>
+                    <li>MIT 协议，可自由 fork 和商用</li>
+                    <li>已有完整的技能生态（brainstorming → plan → code → test → review）</li>
+                </ul>
+            </div>
+            <div class="cons">
+                <div class="cons-title">局限</div>
+                <ul>
+                    <li>主要面向 AI 编程工具（Claude Code 等），非独立 Agent 运行时</li>
+                    <li>技能以 Shell/JS 为主，非 Python 框架</li>
+                    <li>不自带 LLM 调用层，依赖宿主工具的模型能力</li>
+                    <li>不适合需要独立部署为后端服务的场景</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- MetaGPT -->
+    <div class="framework-card">
+        <div class="framework-header">
+            <div class="framework-name"><a href="https://github.com/FoundationAgents/MetaGPT" target="_blank">MetaGPT</a></div>
+            <div class="framework-meta">
+                <span class="badge badge-cyan">40k+ stars</span>
+                <span class="badge badge-green">MIT</span>
+                <span class="badge badge-purple">2023.06 创建</span>
+            </div>
+        </div>
+        <div class="framework-desc">
+            <strong>一句话定位：</strong>「The Multi-Agent Framework: First AI Software Company」— 通过 SOP（标准操作程序）指导多 Agent 协作，模拟完整软件公司。
+        </div>
+        <div class="framework-features">
+            <div class="feature-item"><span class="check">✓</span> 角色化 Agent：PM、架构师、工程师、QA</div>
+            <div class="feature-item"><span class="check">✓</span> SOP 驱动协作，结构化输出</div>
+            <div class="feature-item"><span class="check">✓</span> 支持自然语言→可运行代码</div>
+            <div class="feature-item"><span class="check">✓</span> Python 框架，可独立部署</div>
+        </div>
+        <div class="pros-cons">
+            <div class="pros">
+                <div class="pros-title">优势</div>
+                <ul>
+                    <li>SOP 概念与你的 tree-sop 理念天然契合</li>
+                    <li>Python 实现，可独立运行和部署</li>
+                    <li>角色分工明确，代码生成质量较高</li>
+                </ul>
+            </div>
+            <div class="cons">
+                <div class="cons-title">局限</div>
+                <ul>
+                    <li>角色固定，灵活性有限</li>
+                    <li>不支持自定义 skill → agent 转换</li>
+                    <li>更新频率近期放缓（最后 push: 2026-01）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- CrewAI -->
+    <div class="framework-card">
+        <div class="framework-header">
+            <div class="framework-name"><a href="https://github.com/crewAIInc/crewAI" target="_blank">CrewAI</a></div>
+            <div class="framework-meta">
+                <span class="badge badge-cyan">25k+ stars</span>
+                <span class="badge badge-green">MIT</span>
+                <span class="badge badge-purple">2023.10 创建</span>
+            </div>
+        </div>
+        <div class="framework-desc">
+            <strong>一句话定位：</strong>角色驱动的多 Agent 协作框架，像组建人类团队一样组建 Agent 团队。
+        </div>
+        <div class="framework-features">
+            <div class="feature-item"><span class="check">✓</span> Role + Goal + Backstory 角色定义</div>
+            <div class="feature-item"><span class="check">✓</span> 顺序/并行/层级三种调度模式</div>
+            <div class="feature-item"><span class="check">✓</span> 原生结构化输出（JSON/Markdown/CSV）</div>
+            <div class="feature-item"><span class="check">✓</span> Agent 市场，社区模板可复用</div>
+        </div>
+        <div class="pros-cons">
+            <div class="pros">
+                <div class="pros-title">优势</div>
+                <ul>
+                    <li>开发效率高，代码量少（比 AutoGen 少 40%）</li>
+                    <li>角色抽象完善，贴合人类团队直觉</li>
+                    <li>社区活跃，更新频繁</li>
+                </ul>
+            </div>
+            <div class="cons">
+                <div class="cons-title">局限</div>
+                <ul>
+                    <li>人类在回路支持弱（开源版）</li>
+                    <li>不支持自定义 skill → agent 转换</li>
+                    <li>流程可控性一般，不支持复杂分支</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- LangGraph -->
+    <div class="framework-card">
+        <div class="framework-header">
+            <div class="framework-name"><a href="https://github.com/langchain-ai/langgraph" target="_blank">LangGraph</a></div>
+            <div class="framework-meta">
+                <span class="badge badge-cyan">22k+ stars</span>
+                <span class="badge badge-green">MIT</span>
+                <span class="badge badge-purple">2023.08 创建</span>
+            </div>
+        </div>
+        <div class="framework-desc">
+            <strong>一句话定位：</strong>基于状态机的 Agent 编排框架，将 Agent、工具、函数都抽象为图的节点。
+        </div>
+        <div class="framework-features">
+            <div class="feature-item"><span class="check">✓</span> 图结构编排，支持循环/分支/暂停/恢复</div>
+            <div class="feature-item"><span class="check">✓</span> 原生状态持久化和检查点</div>
+            <div class="feature-item"><span class="check">✓</span> LangSmith 全链路可观测性</div>
+            <div class="feature-item"><span class="check">✓</span> 生产环境最稳定的选择</div>
+        </div>
+        <div class="pros-cons">
+            <div class="pros">
+                <div class="pros-title">优势</div>
+                <ul>
+                    <li>流程可控性最强，适合生产环境</li>
+                    <li>可自定义任意复杂的工作流逻辑</li>
+                    <li>生态完善，与 LangChain 全栈打通</li>
+                </ul>
+            </div>
+            <div class="cons">
+                <div class="cons-title">局限</div>
+                <ul>
+                    <li>学习曲线陡峭，概念复杂</li>
+                    <li>需要自己实现 skill → agent 逻辑</li>
+                    <li>代码量较大，样板代码多</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenHands -->
+    <div class="framework-card">
+        <div class="framework-header">
+            <div class="framework-name"><a href="https://github.com/All-Hands-AI/OpenHands" target="_blank">OpenHands</a></div>
+            <div class="framework-meta">
+                <span class="badge badge-cyan">72k+ stars</span>
+                <span class="badge badge-green">MIT</span>
+                <span class="badge badge-purple">2024.03 创建</span>
+            </div>
+        </div>
+        <div class="framework-desc">
+            <strong>一句话定位：</strong>开源版 Devin — AI 驱动的自主软件开发 Agent 平台。
+        </div>
+        <div class="framework-features">
+            <div class="feature-item"><span class="check">✓</span> 可执行任何人类开发者能做的操作</div>
+            <div class="feature-item"><span class="check">✓</span> 代码编写、终端操作、浏览器交互</div>
+            <div class="feature-item"><span class="check">✓</span> PR 管理、代码审查</div>
+            <div class="feature-item"><span class="check">✓</span> Docker 沙箱安全执行</div>
+        </div>
+        <div class="pros-cons">
+            <div class="pros">
+                <div class="pros-title">优势</div>
+                <ul>
+                    <li>功能最完整的软件开发 Agent</li>
+                    <li>社区庞大，仅次于 LangChain</li>
+                    <li>可直接用于实际项目开发</li>
+                </ul>
+            </div>
+            <div class="cons">
+                <div class="cons-title">局限</div>
+                <ul>
+                    <li>单体 Agent，非 skill → agent 架构</li>
+                    <li>不支持自定义 skill 体系</li>
+                    <li>较重，部署成本高</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Comparison Matrix -->
+<div class="section">
+    <div class="section-title"><span class="icon">📊</span> 关键维度对比矩阵</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>维度</th>
+                    <th>Superpowers</th>
+                    <th>MetaGPT</th>
+                    <th>CrewAI</th>
+                    <th>LangGraph</th>
+                    <th>OpenHands</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Skill → Agent 转换</strong></td>
+                    <td><span class="badge badge-green">原生支持</span></td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                    <td><span class="badge badge-orange">需自建</span></td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                </tr>
+                <tr>
+                    <td><strong>软件开发方法论</strong></td>
+                    <td><span class="badge badge-green">完整内置</span></td>
+                    <td><span class="badge badge-green">完整内置</span></td>
+                    <td><span class="badge badge-orange">可扩展</span></td>
+                    <td><span class="badge badge-red">无</span></td>
+                    <td><span class="badge badge-green">核心能力</span></td>
+                </tr>
+                <tr>
+                    <td><strong>子 Agent 调度</strong></td>
+                    <td><span class="badge badge-green">原生支持</span></td>
+                    <td><span class="badge badge-orange">有限</span></td>
+                    <td><span class="badge badge-green">层级模式</span></td>
+                    <td><span class="badge badge-green">图节点</span></td>
+                    <td><span class="badge badge-red">不支持</span></td>
+                </tr>
+                <tr>
+                    <td><strong>TDD / 测试驱动</strong></td>
+                    <td><span class="badge badge-green">强制 TDD</span></td>
+                    <td><span class="badge badge-orange">部分</span></td>
+                    <td><span class="badge badge-red">无</span></td>
+                    <td><span class="badge badge-red">无</span></td>
+                    <td><span class="badge badge-orange">可配置</span></td>
+                </tr>
+                <tr>
+                    <td><strong>跨平台兼容</strong></td>
+                    <td><span class="badge badge-green">10+ 平台</span></td>
+                    <td><span class="badge badge-red">仅 Python</span></td>
+                    <td><span class="badge badge-red">仅 Python</span></td>
+                    <td><span class="badge badge-red">仅 Python</span></td>
+                    <td><span class="badge badge-orange">Web + Docker</span></td>
+                </tr>
+                <tr>
+                    <td><strong>独立部署</strong></td>
+                    <td><span class="badge badge-red">依赖宿主</span></td>
+                    <td><span class="badge badge-green">可独立</span></td>
+                    <td><span class="badge badge-green">可独立</span></td>
+                    <td><span class="badge badge-green">可独立</span></td>
+                    <td><span class="badge badge-green">可独立</span></td>
+                </tr>
+                <tr>
+                    <td><strong>自定义 Skill 扩展</strong></td>
+                    <td><span class="badge badge-green">writing-skills</span></td>
+                    <td><span class="badge badge-orange">角色扩展</span></td>
+                    <td><span class="badge badge-orange">角色扩展</span></td>
+                    <td><span class="badge badge-green">完全自由</span></td>
+                    <td><span class="badge badge-orange">有限</span></td>
+                </tr>
+                <tr>
+                    <td><strong>学习曲线</strong></td>
+                    <td><span class="badge badge-green">低</span></td>
+                    <td><span class="badge badge-orange">中</span></td>
+                    <td><span class="badge badge-green">低</span></td>
+                    <td><span class="badge badge-red">高</span></td>
+                    <td><span class="badge badge-orange">中</span></td>
+                </tr>
+                <tr>
+                    <td><strong>代码审查流程</strong></td>
+                    <td><span class="badge badge-green">两阶段</span></td>
+                    <td><span class="badge badge-orange">单阶段</span></td>
+                    <td><span class="badge badge-red">无</span></td>
+                    <td><span class="badge badge-orange">可自建</span></td>
+                    <td><span class="badge badge-orange">基础</span></td>
+                </tr>
+                <tr>
+                    <td><strong>SOP / 流程化</strong></td>
+                    <td><span class="badge badge-green">方法论级</span></td>
+                    <td><span class="badge badge-green">SOP 驱动</span></td>
+                    <td><span class="badge badge-orange">任务驱动</span></td>
+                    <td><span class="badge badge-orange">图驱动</span></td>
+                    <td><span class="badge badge-red">无</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Decision Tree -->
+<div class="section">
+    <div class="section-title"><span class="icon">🧭</span> 选型决策树</div>
+    <div class="decision-tree">
+        <div class="decision-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <div class="question">你的核心需求是否是「将 skill 转为独立 agent 进行软件开发」？</div>
+                <div class="options">
+                    <div class="option recommended"><span class="arrow">→</span> 是 → 进入步骤 2</div>
+                    <div class="option"><span class="arrow">→</span> 否，只需要通用多 Agent 协作 → 选 CrewAI 或 AutoGen</div>
+                </div>
+            </div>
+        </div>
+        <div class="decision-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <div class="question">你是否需要独立部署为后端服务（而非依赖 Claude Code 等宿主）？</div>
+                <div class="options">
+                    <div class="option"><span class="arrow">→</span> 不需要，在 AI 编程工具内使用 → <strong>直接用 Superpowers</strong></div>
+                    <div class="option recommended"><span class="arrow">→</span> 需要独立部署 → 进入步骤 3</div>
+                </div>
+            </div>
+        </div>
+        <div class="decision-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <div class="question">你希望以哪种方式实现 skill → agent？</div>
+                <div class="options">
+                    <div class="option recommended"><span class="arrow">→</span> Fork Superpowers + 用 Python 重写核心 → <strong>推荐方案</strong></div>
+                    <div class="option"><span class="arrow">→</span> 基于 MetaGPT 的 SOP 架构扩展自定义 skill → 备选方案 A</div>
+                    <div class="option"><span class="arrow">→</span> 基于 LangGraph 从零搭建 skill → agent 映射层 → 备选方案 B</div>
+                    <div class="option"><span class="arrow">→</span> 基于 CrewAI 将每个 skill 定义为一个角色 Agent → 备选方案 C</div>
+                </div>
+            </div>
+        </div>
+        <div class="decision-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <div class="question">你的 skill 体系是否结构化（如 tree-SOP 树形结构）？</div>
+                <div class="options">
+                    <div class="option recommended"><span class="arrow">→</span> 是，有结构化 skill 定义 → 设计 skill → agent 自动映射机制</div>
+                    <div class="option"><span class="arrow">→</span> 否，skill 还在整理中 → 先用 Superpowers 的 writing-skills 方法论梳理</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendation -->
+<div class="section">
+    <div class="section-title"><span class="icon">💡</span> 最终建议</div>
+
+    <div class="recommendation">
+        <h3>推荐方案：Fork Superpowers + 定制化改造</h3>
+        <p><strong>核心理由：</strong>Superpowers 是目前开源社区中唯一一个将「skill 体系」与「软件开发方法论」深度融合的框架，其设计理念与你的需求高度一致。它的 brainstorming → planning → subagent-driven-development → TDD → code-review 工作流，本质上就是将一系列 skill 编排为 Agent 协作流程。</p>
+        <p><strong>具体实施路径：</strong></p>
+        <p><strong>1. 短期（1-2 周）：</strong>直接安装 Superpowers 到你的 AI 编程工具中，体验其 skill → agent 工作流，理解其架构设计</p>
+        <p><strong>2. 中期（2-4 周）：</strong>参考 Superpowers 的 skill 结构（SKILL.md 格式），将你的 tree-sop skill 体系映射为 Superpowers 兼容的 skill 包</p>
+        <p><strong>3. 长期（1-2 月）：</strong>如需独立部署，用 Python 重写核心调度逻辑，参考 MetaGPT 的 SOP 架构和 LangGraph 的状态机编排</p>
+    </div>
+
+    <div class="callout" style="border-color: var(--accent-purple);">
+        <div class="callout-title" style="color: var(--accent-purple);">备选方案对比</div>
+        <div class="table-wrapper" style="border: none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>方案</th>
+                        <th>基础</th>
+                        <th>开发量</th>
+                        <th>灵活性</th>
+                        <th>适合场景</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>方案 A（推荐）</strong></td>
+                        <td>Fork Superpowers</td>
+                        <td><span class="badge badge-green">低</span></td>
+                        <td><span class="badge badge-green">高</span></td>
+                        <td>快速落地，需跨平台兼容</td>
+                    </tr>
+                    <tr>
+                        <td>方案 B</td>
+                        <td>MetaGPT + 自定义 SOP</td>
+                        <td><span class="badge badge-orange">中</span></td>
+                        <td><span class="badge badge-orange">中</span></td>
+                        <td>Python 生态，需独立部署</td>
+                    </tr>
+                    <tr>
+                        <td>方案 C</td>
+                        <td>LangGraph 从零搭建</td>
+                        <td><span class="badge badge-red">高</span></td>
+                        <td><span class="badge badge-green">极高</span></td>
+                        <td>需完全自定义流程控制</td>
+                    </tr>
+                    <tr>
+                        <td>方案 D</td>
+                        <td>CrewAI 角色映射</td>
+                        <td><span class="badge badge-orange">中</span></td>
+                        <td><span class="badge badge-orange">中</span></td>
+                        <td>每个 skill = 一个角色 Agent</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Architecture Suggestion -->
+<div class="section">
+    <div class="section-title"><span class="icon">🏗️</span> 建议架构设计</div>
+    <div class="arch-diagram">
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">基于 Superpowers 理念 + 你的 tree-sop skill 体系的推荐架构：</p>
+        <div class="arch-flow" style="flex-direction: column; gap: 16px;">
+            <div style="display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;">
+                <div class="arch-node skill">tree-sop skill 定义层</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node core">Skill → Agent 映射引擎</div>
+                <span class="arch-arrow">→</span>
+                <div class="arch-node agent">独立 Agent 实例池</div>
+            </div>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
+                <div class="arch-node agent">Brainstorm Agent</div>
+                <div class="arch-node agent">Planning Agent</div>
+                <div class="arch-node agent">Coding Agent</div>
+                <div class="arch-node agent">Testing Agent</div>
+                <div class="arch-node agent">Review Agent</div>
+            </div>
+            <div style="display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;">
+                <span class="arch-arrow">↑</span>
+            </div>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
+                <div class="arch-node core">编排调度器 (Orchestrator)</div>
+                <span class="arch-arrow">←</span>
+                <div class="arch-node core">状态管理 &amp; 检查点</div>
+            </div>
+        </div>
+        <p style="color: var(--text-tertiary); font-size: 13px; margin-top: 16px;">
+            每个 skill 定义包含：触发条件、工作流程、工具集、输入/输出规范。映射引擎自动将 skill 定义转换为具有角色、目标、工具的独立 Agent。
+        </p>
+    </div>
+</div>
+
+<!-- Timeline of Agent Frameworks -->
+<div class="section">
+    <div class="section-title"><span class="icon">📅</span> Agent 框架发展时间线</div>
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-date">2023.03</div>
+            <div class="timeline-content">LangChain 发布 Agent 模块 — 首个通用 Agent 编排框架</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2023.06</div>
+            <div class="timeline-content">MetaGPT 发布 — 首个 SOP 驱动的多 Agent 软件公司框架</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2023.08</div>
+            <div class="timeline-content">微软 AutoGen 发布 — 对话优先的多 Agent 框架</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2023.10</div>
+            <div class="timeline-content">CrewAI 发布 — 角色驱动的多 Agent 协作框架</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2024.02</div>
+            <div class="timeline-content">LangGraph 发布 — 基于状态机的生产级 Agent 编排</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2024.03</div>
+            <div class="timeline-content">OpenHands (OpenDevin) 发布 — 开源版 Devin</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2025.03</div>
+            <div class="timeline-content">OpenAI Agents SDK 发布 — 轻量级多 Agent 工作流</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2025.10</div>
+            <div class="timeline-content"><strong>Superpowers 发布</strong> — 技能驱动 Agent + 软件开发方法论，9 个月内突破 76k stars</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-date">2026.07</div>
+            <div class="timeline-content">Agent Skills 逐步成为行业标准 — Claude Code、GitHub Copilot、Cursor、Gemini CLI 等统一支持</div>
+        </div>
+    </div>
+</div>
+
+<!-- Sources -->
+<div class="section">
+    <div class="section-title"><span class="icon">📚</span> 数据来源</div>
+    <div class="sources">
+        <ul style="list-style: none; padding: 0;">
+            <li>[1] [官方] GitHub API — 仓库搜索与元数据 (2026-07-13 查询)</li>
+            <li>[2] [官方] <a href="https://github.com/obra/superpowers" target="_blank">obra/superpowers — GitHub 仓库</a></li>
+            <li>[3] [官方] <a href="https://github.com/FoundationAgents/MetaGPT" target="_blank">FoundationAgents/MetaGPT — GitHub 仓库</a></li>
+            <li>[4] [官方] <a href="https://github.com/microsoft/autogen" target="_blank">microsoft/autogen — GitHub 仓库</a></li>
+            <li>[5] [官方] <a href="https://github.com/crewAIInc/crewAI" target="_blank">crewAIInc/crewAI — GitHub 仓库</a></li>
+            <li>[6] [官方] <a href="https://github.com/langchain-ai/langgraph" target="_blank">langchain-ai/langgraph — GitHub 仓库</a></li>
+            <li>[7] [官方] <a href="https://github.com/All-Hands-AI/OpenHands" target="_blank">All-Hands-AI/OpenHands — GitHub 仓库</a></li>
+            <li>[8] [行业报道] 2026年AI Agent框架横向对比 (CSDN, 2026-06)</li>
+            <li>[9] [行业报道] 开源AI Agent框架全景评测 (CSDN, 2026-05)</li>
+            <li>[10] [行业报道] LangGraph vs CrewAI vs OpenAI Swarm 对比 (CSDN, 2025-08)</li>
+            <li>[11] [行业报道] 191k Star 的 Superpowers 分析 (CSDN, 2026)</li>
+            <li>[12] [行业报道] Agent Skills一统AI编程江湖 (头条, 2026)</li>
+            <li>[13] [行业报道] GitHub 十大爆款开源项目:Agent 进化为数字员工 (头条, 2026)</li>
+        </ul>
+    </div>
+    <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 16px;">
+        * Stars 数据存在不同来源的时效性差异，已尽可能取 2026-07 最新值。建议在实际选型前再次验证 GitHub 实时数据。
+    </p>
+</div>
+
+</div>
+</body>
+</html>

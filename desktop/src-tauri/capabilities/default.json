@@ -1,0 +1,9 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for Tree-SOP Agent",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default"
+  ]
+}
