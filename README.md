@@ -1,93 +1,182 @@
-# Tree-SOP Agent
+<div align="center">
 
-> **版本**：Alpha 0.1 | 群聊式多 Agent 软件开发体系 — 预置完整公司级 SOP 管道，每个 Skill 自动变为 Agent 知识外挂
+# 🌲 Tree-SOP Agent
 
-## 项目概述
+**群聊式多 Agent 软件开发工厂 —— 11 个角色、5 层记忆、硬约束 Harness**
 
-Tree-SOP Agent 是一个**群聊式多 Agent 软件开发框架**。预置 11 个 Agent 角色（PM、Spec、Coding、Code-Review、TDD、Acceptance、Security、DevOps、Secretary、Trinity + Dispatcher），按标准公司开发流程编排协作。用户向群聊输入需求，系统自动路由、自动执行、自动留痕。底层使用 DeepSeek V4 Pro/Flash 混用策略和三层缓存优化。
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python)](https://python.org)
+[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek_V4-4B32C3)](https://deepseek.com)
+[![Tauri](https://img.shields.io/badge/Desktop-Tauri_v2-FFC131?logo=tauri)](https://tauri.app)
+[![Status](https://img.shields.io/badge/Status-Alpha_0.1-orange)](CHANGELOG.md)
 
-### 最终 SOP 管道
+</div>
+
+---
+
+> ⚠️ **声明**：本项目当前为**技术路线展示与技术验证**阶段，尚未达到生产可用级别。架构设计、核心模块和 SOP 管道已完成概念验证，欢迎研究、讨论和贡献。
+
+---
+
+## 这是什么？
+
+Tree-SOP Agent 是一个**群聊式多 Agent 软件开发框架**。你像在群里发消息一样输入需求，11 个 AI 角色自动协作——从需求分析、架构评审、编码、测试到安全审计和部署，全流程自动完成。
+
+**对标项目**：受 [Superpowers](https://github.com/obra/superpowers) (76k+★) 的 Skill→Agent 理念和 [CrewAI](https://github.com/crewAIInc/crewAI) 的角色编排模式启发，融入了自研的**硬约束 Harness 层**和**四层记忆体系**。
 
 ```
-用户: "帮我做一个登录功能"
+你: "帮我做一个登录功能，支持手机号+验证码"
          │
          ▼
-    Dispatcher（理解意图，启动管道）
+    Dispatcher ─── 理解意图，启动管道
          │
          ▼
-    PM ───→ Trinity（架构评审）
+    PM Agent ───→ Trinity 架构评审
          │
          ▼
-    Spec-Pipeline（拆任务）
+    Spec-Pipeline ─── 拆分任务 + 验收清单
          │
          ▼
-    Coding ───→ Code-Review（代码审查）
-         │              │
-         ▼              ▼
-    TDD ←── CR Report
+    Coding Agent ───→ Code-Review Agent
+         │                    │
+         ▼                    ▼
+    TDD Agent ←────── CR Report
          │
          ▼
-    Acceptance ──→ Security（并行）
+    Acceptance + Security（并行验收 + 安全审计）
          │
          ▼
-    DevOps（构建发布）
+    DevOps Agent ─── 构建发布
          │
          ▼
-    Secretary（留痕看板 + 版本快照）
+    Secretary Agent ─── 留痕看板 + 版本快照
 ```
 
-每个节点产出 HandoverPackage 传递到下一节点，自动写 LOG.md 留痕。LOOP SOP 全程监控门禁。
+---
 
-## 关键技术选型
+## 🆚 与同类项目的关键差异
 
-| 维度 | 选型 | 状态 |
-|------|------|------|
-| 底层模型 | DeepSeek V4 Pro（规划/调研/审查）+ Flash（编程/测试） | ✅ 已集成 |
-| 参考框架 | Superpowers（skill→agent 理念）+ CrewAI（per-agent 模型分配） | ✅ 调研完成 |
-| Skill 体系 | tree-SOP 结构化定义（YAML frontmatter + Markdown body） | ✅ v0.1.0 |
-| 编排模式 | 顺序/并行/层级 + 检查点恢复 | ✅ v0.2.0 |
-| 缓存策略 | 三层 Context 分区 + 前缀 hash 不变性检测 | ✅ v0.1.0 |
-| FC 适配 | reasoning_content + tool_choice 显式函数名 | ✅ v0.1.0 |
-| 预置 Agent | 11 个角色，用户可导入多 Skill 挂载 | 💡 待实现 |
-| 桌面 UI | Tauri + Monaco + xterm.js | 💡 待实现 |
+| 维度 | CrewAI | MetaGPT | AutoGPT | OpenHands | **Tree-SOP Agent** |
+|------|:------:|:-------:|:-------:|:---------:|:------------------:|
+| **硬约束层** | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | ✅ **ToolGuard + LOOP SOP 5 级门禁** |
+| **角色体系** | 通用可定义 | 软件公司模拟 | 单 Agent | 编码 Agent | ✅ **11 个预设角色 + 自定义挂载** |
+| **记忆架构** | 短期记忆 | 消息共享 | 向量存储 | 对话上下文 | ✅ **四层记忆 + 五层压缩** |
+| **缓存优化** | — | — | — | — | ✅ **前缀 hash 不变性 + 三层 Context 分区** |
+| **失败处理** | 手动重试 | 手动重试 | 循环重试 | 无内置 | ✅ **自动降级 + 熔断器 + 检查点恢复** |
+| **桌面应用** | ❌ | ❌ | ❌ | ❌ | ✅ **Tauri v2 + Monaco + xterm.js** |
+| **开源协议** | MIT | MIT | Apache 2.0 | MIT | **AGPL v3** |
 
-## 项目结构
+---
+
+## 🏗️ 架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Control Plane (Harness)                    │
+│   LOOP SOP · ToolGuard · GlobalConstraints · MemoryRouter    │
+├──────────────────────────────────────────────────────────────┤
+│                    Agent Plane                                │
+│   SkillParser → SkillRegistry → AgentFactory → Agent         │
+│   HandoverPackage · Dispatcher · IntentRouter                │
+├──────────────────────────────────────────────────────────────┤
+│                    Orchestration Plane                        │
+│   SequentialOrch · ParallelOrch · HierarchicalOrch           │
+│   CheckpointManager · ConversationCompressor                │
+├──────────────────────────────────────────────────────────────┤
+│                    Tool Plane                                 │
+│   MCPClient · ToolGuard · RepoMap · EmbeddingIndex           │
+│   DeepSeekAdapter · CacheEngine · ContextPartitioner         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 四层记忆体系
+
+```
+Layer 1: CacheEngine         — 前缀组装 + SHA-256 hash 快照，最大化 DeepSeek 缓存命中
+Layer 2: ContextPartitioner  — immutable / append-only / volatile 三层分区
+Layer 3: EmbeddingIndex      — Skill 语义检索（sentence-transformers / 关键词降级）
+        + ConversationCompressor — hybrid/truncate/summarize 三模式压缩
+Layer 4: CheckpointManager   — JSON 检查点持久化
+        + write_log()        — Agent 自动留痕 LOG.md
+```
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Python 3.10+
+- DeepSeek API Key（环境变量 `DEEPSEEK_API_KEY`）
+
+### 安装
+
+```bash
+git clone https://github.com/luyi14-bits/tree-sop-agent.git
+cd tree-sop-agent
+pip install pydantic pydantic-settings pyyaml
+```
+
+### 运行
+
+```bash
+# CLI 模式 — 加载所有 Skill 并自检
+python auto_test.py
+
+# 群聊模式 — Dispatcher 入口
+python run.py
+
+# 挂载自定义 Skill
+python run.py --attach my-custom-skill
+
+# 查看 Agent prompt 组装结果
+python -m src.tree_sop_agent.cli.main --skill-dir skills --inspect pm-mentor
+```
+
+---
+
+## 📁 项目结构
 
 ```
 tree-sop-agent/
-├── README.md                  # 项目首页
-├── PIPELINE_KANBAN.md         # 管线看板（6 列流转 + 想法池）
-├── CHANGELOG.md               # 发布历史
-├── ITERATION_LOG.md           # LOOP 迭代追踪表
-├── .gitignore                 # Git 忽略规则
-├── auto_test.py               # CLI 自测脚本
-├── docs/                      # 技术文档
-│   ├── prd/                   # PRD 文档
-│   ├── acceptance-report-task-001.md
-│   └── agent-framework-research.html
-├── .trae/specs/               # Spec 任务目录
-├── src/tree_sop_agent/        # 核心代码
-│   ├── core/                  # SkillDef / Parser / Registry / AgentFactory
-│   ├── adapters/              # ModelRouter / DeepSeekAdapter / CacheEngine / Context
-│   ├── orchestrator/          # Sequential / Hierarchical / Parallel + Checkpoint
-│   ├── cli/                   # CLI 入口
-│   └── server/                # FastAPI 独立部署
-├── tests/                     # pytest 测试套件（36 个）
-├── versions/                  # 版本快照
-│   ├── v0.1.0/
-│   └── v0.2.0/
-└── skills/                    # LOOP SOP 留痕日志
+├── src/tree_sop_agent/
+│   ├── core/            # SkillDef · Parser · Registry · AgentFactory
+│   ├── adapters/        # DeepSeekAdapter · CacheEngine · Context · MCPClient
+│   ├── orchestrator/    # Sequential · Parallel · Hierarchical · Checkpoint
+│   ├── cli/             # CLI 入口
+│   └── server/          # FastAPI 独立部署
+├── skills/              # Agent 定义 SKILL.md + 留痕 LOG.md
+├── desktop/             # Tauri v2 桌面应用壳
+├── tests/               # pytest 测试套件（47 个测试）
+├── docs/                # 技术白皮书 · PRD · 框架调研
+└── versions/            # 版本快照
 ```
 
-## 路线图
+---
 
-| 阶段 | 目标 | 状态 |
+## 🗺️ 路线图
+
+| 阶段 | 内容 | 状态 |
 |------|------|:----:|
-| Phase 0 | 调研开源 Agent 框架 | ✅ 完成 |
-| Phase 1 | 确定 skill → agent 映射架构 | ✅ v0.1.0 已发布 |
-| Phase 2 | 搭建项目骨架 + DeepSeek 接入 | ✅ v0.1.0 已发布 |
-| Phase 3 | 实现 skill 定义层 + 映射引擎 | ✅ v0.1.0 已发布 |
-| Phase 4 | 实现编排调度器 + 状态管理 | ✅ v0.1.0 已发布 |
-| Phase 5 | 完整开发工作流（brainstorm→plan→code→test→review） | ✅ v0.2.0 已发布 |
-| Phase 6 | 预置 Agent 角色体系 + 多 Skill 挂载 | 💡 待评估 |
-| Phase 7 | Tauri 桌面应用（Monaco + xterm.js） | 💡 待评估 |
+| Phase 0 | 调研 10+ 开源 Agent 框架 | ✅ |
+| Phase 1–2 | Skill→Agent 映射 + DeepSeek 双模型接入 | ✅ v0.1.0 |
+| Phase 3–4 | 编排调度器 + 检查点 + 上下文压缩 | ✅ v0.2.0 |
+| Phase 5 | 完整 5 级 SOP 管道 + 自测 | ✅ v0.4.0 |
+| Phase 6 | Tauri 桌面应用壳 | ✅ v1.0.0 |
+| Phase 7 | SQLite 持久记忆 + 跨 session RAG | 💡 |
+| Phase 8 | CircuitBreaker + DriftDetector | 💡 |
+| Phase 9 | 生产级稳定 + 正式发布 | 💡 |
+
+---
+
+## 📄 开源协议
+
+[GNU Affero General Public License v3.0](LICENSE)
+
+> AGPL v3 要求：如果你修改了本项目并作为网络服务提供，你必须公开修改后的源代码。
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by Tree-SOP Agent Contributors · 2026</sub>
+</div>
