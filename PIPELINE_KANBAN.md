@@ -1,6 +1,6 @@
 # 管线看板
 
-> 最后更新：2026-07-20（第二十轮：桌面归档 + 框架化战略转向） | 维护人：项目秘书
+> 最后更新：2026-07-20（第二十一轮：新增 IDEA-049 外部 Agent 兼容层 + 双模定位确认） | 维护人：项目秘书
 > 数据来源：需求对话 + 调研报告 + Reasonix 源码分析 + DeepSeek API 文档 + 2026 框架技术路线调研
 
 ---
@@ -9,7 +9,7 @@
 
 | 💡 想法池 | 📝 规划中 | 🔨 开发中 | ✅ 验收中 | 🚀 已发布 | ❌ 废弃 |
 |-----------|-----------|-----------|-----------|-----------|---------|
-| 11 项 | 0 项 | 0 项 | 0 项 | 12 项 | 3 项 |
+| 12 项 | 0 项 | 0 项 | 0 项 | 12 项 | 3 项 |
 
 ---
 
@@ -251,7 +251,7 @@
 
 ### IDEA-042：pip 包发布 + 文档站点
 - **来源**：框架化必备基础设施
-- **描述**：pyproject.toml + pip install tree-sop-agent + 文档站点（快速开始 / API 参考 / 示例）
+- **描述**：pyproject.toml + pip install agent-harness + 文档站点（快速开始 / API 参考 / 示例）
 - **对标**：LangGraph / CrewAI / PydanticAI 文档质量
 - **优先级**：P1
 - **状态**：等待 Spec（IDEA-032 升级版）
@@ -268,16 +268,16 @@
 
 ### IDEA-044：MCP 协议完整支持
 - **来源**：2026 跨框架标准 — MCP 协议
-- **描述**：从 MCPClient 基础集成升级为完整 MCP Server + Client 双向支持，让 Tree-SOP Agent 可作为 MCP 工具被其他框架调用
+- **描述**：从 MCPClient 基础集成升级为完整 MCP Server + Client 双向支持，让 AgentHarness 可作为 MCP 工具被其他框架调用
 - **对标**：CrewAI v1.10.1 MCP 集成
-- **优先级**：P1
+- **优先级**：P0（升级 — 外部 Agent 兼容的基础通道）
 - **状态**：等待 Spec（IDEA-016 升级版）
 
 ### IDEA-045：A2A 协议探索
 - **来源**：2026 跨框架通信标准 — A2A
-- **描述**：探索 Agent-to-Agent Protocol，允许 Tree-SOP Agent 与其他框架的 Agent 跨框架协作
+- **描述**：探索 Agent-to-Agent Protocol，允许 AgentHarness 与其他框架的 Agent 跨框架协作
 - **对标**：CrewAI A2A 协议
-- **优先级**：P2
+- **优先级**：P1（升级 — 跨框架协作通道）
 - **状态**：等待 Spec
 
 ### IDEA-046：可视化编排界面
@@ -299,9 +299,23 @@
 - **优先级**：P3
 - **状态**：等待 Spec
 
+### IDEA-049：外部 Agent 兼容层（Meta-Harness）
+- **来源**：框架双模定位 — "既要提供 Agent，也要兼容外部 Agent" + 对标 Omnigent
+- **描述**：提供统一的外部 Agent 适配接口，让 Claude Code / Codex / Cursor / Pi 等第三方 Agent 能接入 AgentHarness 的硬约束管控体系
+- **对标**：Omnigent（7.5k★）— meta-harness 统一编排 + Policy 审批
+- **核心技术点**：
+  - ExternalAgentAdapter 抽象基类：start / send / stop / observe
+  - 预置适配器：ClaudeCodeAdapter / CodexAdapter / PiAdapter
+  - Harness 穿透：外部 Agent 工具调用经过 ToolGuard 三层拦截
+  - 管道接入：外部 Agent 可作为 SOP 管道中的一个节点
+  - 混合编排：内置 Agent（13 角色）+ 外部 Agent 在同一管道中协作
+- **与 Omnigent 差异**：Omnigent Harness 外挂（事后审批），AgentHarness ToolGuard 内置（事前阻断）
+- **优先级**：P0（框架双模核心）
+- **状态**：等待 Spec
+
 ## 📝 规划中
 
-> 所有想法池等待排期，优先级 P0 的 IDEA-036/037/041 为框架化第一批任务
+> 优先级 P0 任务：IDEA-037 LLM Provider / IDEA-036 公开 API / IDEA-049 外部 Agent 兼容 / IDEA-044 MCP 协议 / IDEA-041 Loop Engineering
 
 ---
 
