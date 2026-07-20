@@ -59,7 +59,6 @@ AgentHarness 是一个**自研的多 Agent 编排框架**，对标 CrewAI / Meta
 ## 🆚 与同类项目的关键差异
 
 | 维度 | CrewAI | MetaGPT | AutoGPT | OpenHands | **AgentHarness** |
-| 维度 | CrewAI | MetaGPT | AutoGPT | OpenHands | Omnigent | **AgentHarness** |
 |------|:------:|:-------:|:-------:|:---------:|:--------:|:------------------:|
 | **硬约束层** | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | Policy 审批（事后） | ✅ **ToolGuard + 5 级门禁（事前）** |
 | **Harness 层级** | ❌ | ❌ | ❌ | ❌ | Meta-harness（外层套壳） | ✅ **内置框架级硬约束** |
@@ -149,7 +148,7 @@ agent-harness/
 │   ├── cli/             # CLI 入口
 │   └── server/          # FastAPI 独立部署
 ├── skills/              # Agent 定义 SKILL.md + 留痕 LOG.md
-├── tests/               # pytest 测试套件（47 个测试）
+├── tests/               # pytest 测试套件（62 个测试）
 ├── docs/                # 技术白皮书 · 框架对比 · PRD · 安全审计
 │   ├── framework-comparison-report.md  # 自研框架 vs 10+ 竞品
 │   └── technical-whitepaper-v2.md      # Alpha 0.2 架构文档
