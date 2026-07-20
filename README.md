@@ -2,182 +2,353 @@
 
 # ⚡ AgentHarness
 
-**🏗️ 自研多 Agent 编排框架 —— 13 个预设角色、4 层记忆、硬约束 Harness**
+**A self-built multi-agent orchestration framework with 12 preset roles, 4-layer memory, and hard-constraint harness.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python)](https://python.org)
-[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek_V4-4B32C3)](https://deepseek.com)
-
+[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek_V3-4B32C3)](https://deepseek.com)
 [![Status](https://img.shields.io/badge/Status-Alpha_0.2-orange)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-62%2F62-brightgreen)](tests/)
 
 </div>
 
 ---
 
-> ⚠️ **声明**：本项目当前为**技术路线展示与技术验证**阶段，尚未达到生产可用级别。架构设计、核心模块和 SOP 管道已完成概念验证，欢迎研究、讨论和贡献。
+> ⚠️ **Alpha Status**: AgentHarness is in active development (Alpha 0.2). Core architecture, agent pipeline, and SOP orchestration are proof-of-concept complete. Production use is not yet recommended. Contributions and feedback welcome.
 
 ---
 
-## 这是什么？
+## 📖 Table of Contents
 
-AgentHarness 是一个**自研的多 Agent 编排框架**，对标 CrewAI / MetaGPT / Superpowers / AutoGen。核心差异化在于**硬约束 Harness 层**（ToolGuard + LOOP SOP 5 级门禁）和**四层记忆体系**（CacheEngine → ContextPartitioner → EmbeddingIndex → SQLite）。
-
-**对标项目**：受 [Superpowers](https://github.com/superpowered-ai/superpowers) (258k+★) 的 Skill→Agent 理念和 [CrewAI](https://github.com/crewAIInc/crewAI) (55.8k+★) 的角色编排模式启发，融入了自研的**硬约束 Harness 层**和**四层记忆体系**。
-
-> 📊 完整 10+ 框架深度对比见 [框架对比技术报告](docs/framework-comparison-report.md)
-
-```
-你: "帮我做一个登录功能，支持手机号+验证码"
-         │
-         ▼
-    Dispatcher ─── 理解意图，启动管道
-         │
-         ▼
-    PM Agent ───→ Trinity 架构评审
-         │
-         ▼
-    Spec-Pipeline ─── 拆分任务 + 验收清单
-         │
-         ▼
-    Coding Agent ───→ Code-Review Agent
-         │                    │
-         ▼                    ▼
-    TDD Agent ←────── CR Report
-         │
-         ▼
-    Acceptance + Security（并行验收 + 安全审计）
-         │
-         ▼
-    DevOps Agent ─── 构建发布
-         │
-         ▼
-    Secretary Agent ─── 留痕看板 + 版本快照
-```
+- [What is AgentHarness?](#what-is-agentharness)
+- [Key Features](#key-features)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Built-in Agents](#built-in-agents)
+- [Comparison](#comparison)
+- [Roadmap](#roadmap)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## 🆚 与同类项目的关键差异
+## What is AgentHarness?
 
-| 维度 | CrewAI | MetaGPT | AutoGPT | OpenHands | **AgentHarness** |
-|------|:------:|:-------:|:-------:|:---------:|:--------:|:------------------:|
-| **硬约束层** | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | Policy 审批（事后） | ✅ **ToolGuard + 5 级门禁（事前）** |
-| **Harness 层级** | ❌ | ❌ | ❌ | ❌ | Meta-harness（外层套壳） | ✅ **内置框架级硬约束** |
-| **角色体系** | 通用可定义 | 软件公司模拟 | 单 Agent | 编码 Agent | 外部 Agent 驱动 | ✅ **13 个预设角色 + 自定义挂载** |
-| **记忆架构** | 短期记忆 | 消息共享 | 向量存储 | 对话上下文 | 会话同步 | ✅ **四层记忆 + 五层压缩** |
-| **缓存优化** | — | — | — | — | — | ✅ **前缀 hash 不变性 + 三层 Context 分区** |
-| **失败处理** | 手动重试 | 手动重试 | 循环重试 | 无内置 | 降级策略 | ✅ **自动降级 + 熔断器 + 检查点恢复** |
-| **开源协议** | MIT | MIT | Apache 2.0 | MIT | Apache 2.0 | **MIT** |
+AgentHarness is a **multi-agent orchestration framework** written in Python. It turns structured `SKILL.md` definitions into autonomous agents that collaborate through a **5-stage gated SOP pipeline** — from product discovery to release.
 
----
+Unlike prompt-only frameworks (CrewAI, MetaGPT, AutoGPT), AgentHarness enforces behavior through a **hard-constraint Harness layer**: ToolGuard intercepts tool calls before execution, LOOP SOP gates every pipeline stage, and the GlobalConstraints layer applies to every agent uniformly.
 
-## 🏗️ 架构
+**Inspired by** [Superpowers](https://github.com/superpowered-ai/superpowers) (258k+ ★) skill-to-agent mapping and [CrewAI](https://github.com/crewAIInc/crewAI) (55k+ ★) role-based orchestration. Adds a self-built hard-constraint layer and 4-tier memory architecture optimized for DeepSeek Context Caching.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    Control Plane (Harness)                    │
-│   LOOP SOP · ToolGuard · GlobalConstraints · MemoryRouter    │
-├──────────────────────────────────────────────────────────────┤
-│                    Agent Plane                                │
-│   SkillParser → SkillRegistry → AgentFactory → Agent         │
-│   HandoverPackage · Dispatcher · IntentRouter                │
-├──────────────────────────────────────────────────────────────┤
-│                    Orchestration Plane                        │
-│   SequentialOrch · ParallelOrch · HierarchicalOrch           │
-│   CheckpointManager · ConversationCompressor                │
-├──────────────────────────────────────────────────────────────┤
-│                    Tool Plane                                 │
-│   MCPClient · ToolGuard · RepoMap · EmbeddingIndex           │
-│   DeepSeekAdapter · CacheEngine · ContextPartitioner         │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 四层记忆体系
-
-```
-Layer 1: CacheEngine         — 前缀组装 + SHA-256 hash 快照，最大化 DeepSeek 缓存命中
-Layer 2: ContextPartitioner  — immutable / append-only / volatile 三层分区
-Layer 3: EmbeddingIndex      — Skill 语义检索（sentence-transformers / 关键词降级）
-        + ConversationCompressor — hybrid/truncate/summarize 三模式压缩
-Layer 4: CheckpointManager   — JSON 检查点持久化
-        + write_log()        — Agent 自动留痕 LOG.md
+You: "Build a login flow with phone + OTP"
+         │
+         ▼
+  Dispatcher ─── Routes intent, launches pipeline
+         │
+         ▼
+  PM Agent ────→ Trinity Architecture Review
+         │
+         ▼
+  Spec-Pipeline ─── Task breakdown + acceptance checklist
+         │
+         ▼
+  Coding Agent ──→ Code-Review Agent ──→ TDD Agent
+         │
+         ▼
+  Acceptance + Security (parallel verification + security audit)
+         │
+         ▼
+  DevOps Agent ─── Build & release
+         │
+         ▼
+  Secretary Agent ─── Kanban update + version snapshot
 ```
 
 ---
 
-## 🚀 快速开始
+## Key Features
 
-### 环境要求
+- 🧩 **12 Preset Agent Roles** — PM, Trinity (3 AI experts), Spec-Pipeline, Coding, Code-Review, TDD (3 testing legends), Acceptance, Security (3 auditors), DevOps, Secretary, LOOP SOP, plus extensible custom agents
+- 🛡️ **Hard-Constraint Harness** — ToolGuard whitelist/denylist/PreToolUse hook intercepts tools *before* execution; prompt-only frameworks can't do this
+- 🚦 **5-Stage LOOP SOP Gating** — Every pipeline stage has a gate check; auto-degrade on failure (circuit breaker, drift detection, max-iteration cap)
+- 🧠 **4-Layer Memory Architecture** — CacheEngine (SHA-256 prefix hashing) → ContextPartitioner (immutable/append-only/volatile) → EmbeddingIndex (semantic skill retrieval) → SQLite CheckpointManager
+- 💰 **Dual-Model Cost Optimization** — Pro model for planning/review; Flash model for coding/testing. Targets 60-70% API cost reduction
+- 📦 **Skill → Agent Mapping Engine** — Any `SKILL.md` with YAML frontmatter becomes a runnable agent. Mount custom skills at runtime with `--attach`
+- 🔄 **HandoverPackage Protocol** — Typed handoff schema (`source → target + summary + artifacts + decisions + confidence`) ensures no information loss between agents
+- 🧪 **62 Tests, Full Green** — pytest suite covering parser, registry, factory, orchestrator, memory, context compression, and end-to-end pipeline
 
-- Python 3.10+
-- DeepSeek API Key（环境变量 `DEEPSEEK_API_KEY`）
+---
 
-### 安装
+## Quick Start
+
+### Prerequisites
+
+- **Python 3.10+**
+- **DeepSeek API Key** — [Get one here](https://platform.deepseek.com/api_keys)
+
+### Installation
 
 ```bash
+# Clone the repo
 git clone https://github.com/luyi14-bits/agent-harness.git
 cd agent-harness
-pip install pydantic pydantic-settings pyyaml
+
+# Install dependencies
+pip install pydantic>=2.0 pydantic-settings>=2.0 pyyaml>=6.0
+
+# (Optional) Install test dependencies
+pip install pytest
 ```
 
-### 运行
+### Configuration
+
+Set your DeepSeek API key as an environment variable:
 
 ```bash
-# CLI 模式 — 加载所有 Skill 并自检
-python auto_test.py
+# Linux / macOS
+export DEEPSEEK_API_KEY="sk-your-key-here"
 
-# 群聊模式 — Dispatcher 入口
+# Windows (PowerShell)
+$env:DEEPSEEK_API_KEY="sk-your-key-here"
+
+# Windows (CMD)
+set DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+Alternatively, create a `.env` file in the project root:
+
+```
+DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+All configuration is managed via `src/agent_harness/settings.py` (Pydantic `BaseSettings`). See the file for advanced options: model selection, temperature, cache prefix order, session timeout, etc.
+
+### 5-Minute Smoke Test
+
+```bash
+# Run the self-test suite (CLI, no IDE needed)
+python auto_test.py
+```
+
+Expected output: all checks pass, skill parser works, agent factory creates instances, dependencies verified.
+
+---
+
+## Usage
+
+### CLI — Chat Mode (Dispatcher)
+
+```bash
+# Start interactive group-chat with natural language routing
 python run.py
 
-# 挂载自定义 Skill
-python run.py --attach my-custom-skill
+# You'll see:
+#   Tree-SOP Agent — 纯终端群聊模式
+#   Skills: .../skills
+#   已加载 12 个 Agent
+# >
+# Type your request and the Dispatcher routes it to the right agent.
+```
 
-# 查看 Agent prompt 组装结果
+### CLI — Inspect an Agent's Assembled Prompt
+
+```bash
 python -m src.agent_harness.cli.main --skill-dir skills --inspect pm-mentor
 ```
 
+### CLI — Mount Custom Skills at Runtime
+
+```bash
+python run.py --attach my-custom-skill
+```
+
+### Python API
+
+```python
+from agent_harness.orchestrator.dispatcher import Dispatcher
+
+# Initialize with skill directory
+dispatcher = Dispatcher(skill_dir="./skills")
+print(f"Loaded {dispatcher.registry.count()} agents")
+
+# Dispatch a natural-language request
+result = dispatcher.handle("Create a PRD for a user login feature")
+print(result)
+```
+
+For advanced orchestration (sequential, parallel, hierarchical), see `src/agent_harness/orchestrator/orchestrator.py`.
+
+### FastAPI Server (Standalone)
+
+```bash
+python -m src.agent_harness.server.app
+# Endpoints:
+#   POST /execute  — run a pipeline
+#   GET  /status   — check server health
+```
+
 ---
 
-## 📁 项目结构
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                 Control Plane (Harness)                       │
+│  LOOP SOP · ToolGuard · GlobalConstraints · MemoryRouter     │
+├──────────────────────────────────────────────────────────────┤
+│                 Agent Plane                                   │
+│  SkillParser → SkillRegistry → AgentFactory → Agent (12)     │
+│  HandoverPackage · Dispatcher · IntentRouter                 │
+├──────────────────────────────────────────────────────────────┤
+│                 Orchestration Plane                           │
+│  SequentialOrch · ParallelOrch · HierarchicalOrch            │
+│  CheckpointManager · CircuitBreaker · DriftDetector          │
+├──────────────────────────────────────────────────────────────┤
+│                 Tool Plane                                    │
+│  MCPClient · ToolGuard · RepoMap · EmbeddingIndex            │
+│  DeepSeekAdapter · CacheEngine · ContextPartitioner          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### SOP Pipeline
+
+```
+Dispatcher → PM → Trinity → Spec → Coding → Code-Review
+          → TDD → Acceptance ∥ Security → DevOps → Secretary
+```
+
+### 5-Stage LOOP SOP Gating
+
+| Gate   | Check                                        | On Failure        |
+|--------|----------------------------------------------|-------------------|
+| G0→1   | PRD complete + priority set + Out of Scope   | Return to Stage 0 |
+| G1→2   | Spec + Tasks + Checklist ready + BREAKING    | Return to Stage 1 |
+| G2→3   | Self-test exit(0) + tests green + 24 checks  | Return to Stage 2 (max 3×) |
+| G3→4   | Acceptance PASS + Security zero-red          | Return to Stage 2 |
+| G4→end | Version snapshot + Kanban + trace log        | Return to Stage 4 |
+
+### 4-Layer Memory
+
+| Layer | Component            | Mechanism                                          |
+|:-----:|----------------------|----------------------------------------------------|
+| 1     | **CacheEngine**      | SHA-256 prefix hashing for DeepSeek cache hit max. |
+| 2     | **ContextPartitioner** | immutable / append-only / volatile 3-zone context |
+| 3     | **EmbeddingIndex**   | Semantic skill retrieval (sentence-transformers, keyword fallback) |
+| 4     | **CheckpointManager** | JSON checkpoint persist + resume                  |
+
+### ToolGuard — 3-Layer Hard Constraint
+
+```
+Tool Call Request
+      │
+      ▼
+ [Whitelist Check] ── Fail → Block + Log
+      │ Pass
+      ▼
+ [Denylist Check]  ── Hit  → Block + Log
+      │ Pass
+      ▼
+ [PreToolUse Hook] ── Fail → Block + Log
+      │ Pass
+      ▼
+   Execute Tool
+```
+
+---
+
+## Built-in Agents
+
+| # | Agent | Skill File | Role | Model |
+|---|-------|-----------|------|:-----:|
+| 0 | **Dispatcher** | (built-in) | Intent routing, pipeline launch | — |
+| 1 | **PM** | `Luyi14-pm-mentor` | Requirements, PRD (12-section), RICE scoring | Pro |
+| 2 | **Trinity** | `Luyi14-trinity-mentors` | 3 AI/ML experts (Raschka, Karpathy, Lyalin) for architecture review | Pro |
+| 3 | **Spec-Pipeline** | `Luyi14-spec-pipeline` | Spec writing, task breakdown, checklist, complexity control | Pro |
+| 4 | **Coding** | (built-in) | Code generation with Coding Ethics (八荣八耻) enforcement | Flash |
+| 5 | **Code-Review** | `Luyi14-code-review` | Code style, bugs, security, performance anti-patterns | Pro |
+| 6 | **TDD** | `Luyi14-test-driven-development` | 3 testing legends (Beck, Stewart, Okken) for test strategy | Flash |
+| 7 | **Acceptance** | `Luyi14-acceptance-testing` | Evidence-based verification, severity grading, fix tracking | Flash |
+| 8 | **Security** | `Luyi14-security-academy` | 3 security experts (Miessler, Kettle, Ormandy) for audit | Pro |
+| 9 | **DevOps** | `Luyi14-devops` | Build, packaging, tagging, release, rollback | Flash |
+| 10 | **Secretary** | `Luyi14-project-secretary` | File organization, kanban, docs, git, cross-team coordination | Flash |
+| 11 | **LOOP SOP** | `Luyi14-loop-sop` | Gate checking, degradation trigger, iteration tracking | Pro |
+
+---
+
+## Comparison
+
+| Dimension | CrewAI | MetaGPT | AutoGPT | **AgentHarness** |
+|-----------|:------:|:-------:|:-------:|:----------------:|
+| **Hard Constraint Layer** | ❌ prompt-only | ❌ prompt-only | ❌ prompt-only | ✅ **ToolGuard + 5-stage gating (pre-execution)** |
+| **Harness Level** | ❌ | ❌ | ❌ | ✅ **Built-in framework harness** |
+| **Role System** | Generic, user-defined | Software company sim | Single agent | ✅ **12 preset roles + custom mount** |
+| **Memory Architecture** | Short-term | Message sharing | Vector store | ✅ **4-layer + 5-level compression** |
+| **Cache Optimization** | — | — | — | ✅ **Prefix SHA-256 hashing for DeepSeek cache** |
+| **Failure Handling** | Manual retry | Manual retry | Loop retry | ✅ **Auto-degrade + circuit breaker + checkpoint resume** |
+| **License** | MIT | MIT | Apache 2.0 | **MIT** |
+
+> 📊 Full 10+ framework comparison: [Framework Comparison Report](docs/framework-comparison-report.md)
+
+---
+
+## Roadmap
+
+| Phase | Content | Status |
+|-------|---------|:------:|
+| 0 | Research 10+ open-source agent frameworks | ✅ |
+| 1–2 | Skill→Agent mapping + DeepSeek dual-model adapter | ✅ v0.1.0 |
+| 3–4 | Orchestrator + Checkpoint + Context compression | ✅ v0.2.0 |
+| 5 | Full 5-stage SOP pipeline + self-test suite | ✅ v0.4.0 |
+| 6 | Tauri desktop shell | ✅ vA.0.1 |
+| 7 | Memory system refactor + Config + Risk mode | ✅ vA.0.2 |
+| 8 | HyDE routing + Circuit breaker detection | ✅ vA.0.3 |
+| 9 | PyPI publishing + GitHub Actions CI + MkDocs | 🚧 In progress |
+| 10 | Stable release + community validation | 💡 Planned |
+
+---
+
+## Project Structure
 
 ```
 agent-harness/
 ├── src/agent_harness/
-│   ├── core/            # SkillDef · Parser · Registry · AgentFactory
-│   ├── adapters/        # DeepSeekAdapter · CacheEngine · Context · MCPClient
-│   ├── orchestrator/    # Sequential · Parallel · Hierarchical · Checkpoint
-│   ├── cli/             # CLI 入口
-│   └── server/          # FastAPI 独立部署
-├── skills/              # Agent 定义 SKILL.md + 留痕 LOG.md
-├── tests/               # pytest 测试套件（62 个测试）
-├── docs/                # 技术白皮书 · 框架对比 · PRD · 安全审计
-│   ├── framework-comparison-report.md  # 自研框架 vs 10+ 竞品
-│   └── technical-whitepaper-v2.md      # Alpha 0.2 架构文档
-└── versions/            # 版本快照
+│   ├── core/              # SkillDef · Parser · Registry · AgentFactory · Config
+│   ├── adapters/          # DeepSeekAdapter · CacheEngine · Context · MCPClient · RepoMap
+│   ├── orchestrator/      # Sequential · Parallel · Hierarchical · CircuitBreaker · Memory
+│   ├── cli/               # CLI entry point
+│   └── server/            # FastAPI standalone deployment
+├── skills/                # 12 Agent SKILL.md definitions + trace LOG.md
+├── tests/                 # pytest suite (62 tests)
+├── docs/                  # Whitepaper · Framework comparison · PRD · Security audit
+├── desktop/               # Tauri v2 desktop app shell (archived)
+├── versions/              # Version snapshots (v0.1.0 through Alpha-0.2)
+├── auto_test.py           # Self-test CLI script
+├── run.py                 # Dispatcher group-chat entry
+├── pyproject.toml         # Build config
+└── CHANGELOG.md           # Release history
 ```
 
 ---
 
-## 🗺️ 路线图
+## Contributing
 
-| 阶段 | 内容 | 状态 |
-|------|------|:----:|
-| Phase 0 | 调研 10+ 开源 Agent 框架 | ✅ |
-| Phase 1–2 | Skill→Agent 映射 + DeepSeek 双模型接入 | ✅ v0.1.0 |
-| Phase 3–4 | 编排调度器 + 检查点 + 上下文压缩 | ✅ v0.2.0 |
-| Phase 5 | 完整 5 级 SOP 管道 + 自测 | ✅ v0.4.0 |
-| Phase 6 | Tauri 桌面应用壳 | ~~v1.0.0~~ 已归档 |
-| Phase 7 | 真·Tauri 原生桌面（IDEA-018） | ✅ vA.0.1 |
-| Phase 8 | Memory 体系重构 + Config + 风险模式（IDEA-022/025/026/027） | ✅ vA.0.2 |
-| Phase 9 | HyDE 路由 + 熔断检测（IDEA-020/021） | ✅ vA.0.3 |
-| Phase 10 | 正式发布 + 用户验证 | 💡 |
+AgentHarness is in Alpha. We welcome:
+
+- 🐛 **Bug reports** — Open an [issue](https://github.com/luyi14-bits/agent-harness/issues)
+- 💡 **Feature ideas** — Discuss in issues before coding
+- 🔧 **Pull requests** — Keep them small and focused; run `pytest` before submitting
+- 📝 **Documentation** — Improvements to docs, README, or inline comments
+
+See [CHANGELOG.md](CHANGELOG.md) for the full release history and [PIPELINE_KANBAN.md](PIPELINE_KANBAN.md) for the idea pipeline.
 
 ---
 
-## 📄 开源协议
+## License
 
-[MIT License](LICENSE)
-
-Copyright (c) 2026 AgentHarness Contributors
+[MIT](LICENSE) · Copyright (c) 2026 AgentHarness Contributors
 
 ---
 
