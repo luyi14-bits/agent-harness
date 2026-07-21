@@ -36,11 +36,9 @@
 
 ## What is AgentHarness?
 
-AgentHarness is a **multi-agent orchestration framework** written in Python. It turns structured `SKILL.md` definitions into autonomous agents that collaborate through a **5-stage gated SOP pipeline** — from product discovery to release.
+AgentHarness is a **self-built multi-agent orchestration framework** — not a wrapper around existing agent libraries. It introduces a **hard-constraint Harness layer** (ToolGuard + LOOP SOP gating) that intercepts tool calls *before* execution — a capability absent in prompt-only frameworks like CrewAI, MetaGPT, and AutoGPT. The 4-tier memory architecture is purpose-built for DeepSeek Context Caching with SHA-256 prefix hashing.
 
-Unlike prompt-only frameworks (CrewAI, MetaGPT, AutoGPT), AgentHarness enforces behavior through a **hard-constraint Harness layer**: ToolGuard intercepts tool calls before execution, LOOP SOP gates every pipeline stage, and the GlobalConstraints layer applies to every agent uniformly.
-
-**Inspired by** [Superpowers](https://github.com/superpowered-ai/superpowers) (258k+ ★) skill-to-agent mapping and [CrewAI](https://github.com/crewAIInc/crewAI) (55k+ ★) role-based orchestration. Adds a self-built hard-constraint layer and 4-tier memory architecture optimized for DeepSeek Context Caching.
+Unlike fork-based projects, AgentHarness is written from scratch with its own orchestration engine, memory system, and agent definition protocol.
 
 ```
 You: "Build a login flow with phone + OTP"
@@ -104,6 +102,9 @@ pip install -e .
 
 # (Optional) Install test dependencies
 pip install pytest
+
+# Development install (editable)
+pip install -e .
 ```
 
 ### Configuration
@@ -305,7 +306,7 @@ Tool Call Request
 | 1–2 | Skill→Agent mapping + DeepSeek dual-model adapter | ✅ v0.1.0 |
 | 3–4 | Orchestrator + Checkpoint + Context compression | ✅ v0.2.0 |
 | 5 | Full 5-stage SOP pipeline + self-test suite | ✅ v0.4.0 |
-| 6 | Tauri desktop shell | ✅ vA.0.1 |
+| 6 | Tauri desktop shell (archived) | ✅ vA.0.1 |
 | 7 | Memory system refactor + Config + Risk mode | ✅ vA.0.2 |
 | 8 | HyDE routing + Circuit breaker detection | ✅ vA.0.3 |
 | 9 | PyPI publishing + GitHub Actions CI + MkDocs | 🚧 In progress |
